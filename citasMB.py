@@ -4,10 +4,8 @@ import datetime
 
 app = Flask(__name__)
 
-# Diccionario para almacenar estado y datos del usuario
 usuarios = {}
 
-# Servicios y subopciones
 servicios = {
     "1": {"nombre": "Manicure tradicional", "subopciones": ["Normal", "Francesa", "Nail art"]},
     "2": {"nombre": "Manicure en gel", "subopciones": ["Normal", "Francesa", "Nail art"]},
@@ -21,7 +19,6 @@ def whatsapp_bot():
     mensaje = request.form.get('Body').strip().lower()
     resp = MessagingResponse()
 
-    # Primer contacto
     if numero not in usuarios:
         usuarios[numero] = {'estado': 'inicio'}
         resp.message(
@@ -33,7 +30,6 @@ def whatsapp_bot():
 
     estado = usuarios[numero]['estado']
 
-    # Guardar nombre
     if estado == 'inicio':
         usuarios[numero]['nombre'] = mensaje.title()
         usuarios[numero]['estado'] = 'menu'
@@ -45,33 +41,27 @@ def whatsapp_bot():
             "3️⃣ Instagram\n"
             "4️⃣ Otra pregunta"
         )
-    
-    # Menú principal
     elif estado == 'menu':
         if mensaje in ['1', 'pedir cita']:
             usuarios[numero]['estado'] = 'cita_servicio'
             resp.message("¡Perfecto! 💅 Vamos a agendar tu cita.\nEstos son nuestros servicios:\n" +
-                         "\n".join([f"{k}️⃣ {v['nombre']}" for k,v in servicios.items()]))
+                        "\n".join([f"{k}️⃣ {v['nombre']}" for k,v in servicios.items()]))
         elif mensaje in ['2', 'dirección']:
             resp.message("Nuestra dirección es: Calle 53 #78-61. Barrio Los Colores, Medellín.")
         elif mensaje in ['3', 'instagram']:
             resp.message("Nuestro Instagram es: @milenabravo.co")
         else:
             resp.message("Cuéntame, ¿en qué puedo ayudarte?")
-
-    # Selección de servicio
     elif estado == 'cita_servicio':
         if mensaje in servicios.keys():
             usuarios[numero]['servicio'] = mensaje
             usuarios[numero]['estado'] = 'cita_subopcion'
             subopc = servicios[mensaje]['subopciones']
             resp.message("Elegiste: " + servicios[mensaje]['nombre'] + "\n"
-                         "Ahora elige una opción:\n" +
-                         "\n".join([f"{i+1}️⃣ {subopc[i]}" for i in range(len(subopc))]))
+                        "Ahora elige una opción:\n" +
+                        "\n".join([f"{i+1}️⃣ {subopc[i]}" for i in range(len(subopc))]))
         else:
             resp.message("Por favor, selecciona un número válido del servicio.")
-
-    # Selección de subopción
     elif estado == 'cita_subopcion':
         servicio_id = usuarios[numero]['servicio']
         subopc = servicios[servicio_id]['subopciones']
@@ -81,10 +71,7 @@ def whatsapp_bot():
             resp.message("Excelente 💖 Ahora, ¿qué día y hora prefieres para tu cita? (ejemplo: 20/09 15:00)")
         else:
             resp.message("Por favor, selecciona un número válido de las subopciones.")
-
-    # Recepción de fecha y hora
     elif estado == 'cita_fecha':
-        # Guardar fecha y hora en formato simple
         usuarios[numero]['fecha_hora'] = mensaje
         usuarios[numero]['estado'] = 'cita_confirmacion'
         resp.message(
@@ -94,12 +81,9 @@ def whatsapp_bot():
             f"Fecha/Hora: {mensaje}\n\n"
             "Ahora, por favor confirma si quieres agendar esta cita escribiendo 'Sí', o 'No' para cancelar."
         )
-
-    # Confirmación manual
     elif estado == 'cita_confirmacion':
         if mensaje in ['sí', 'si']:
             usuarios[numero]['estado'] = 'menu'
-            # Aquí podrías integrar la creación de evento en Google Calendar
             resp.message(
                 f"✅ Tu cita ha sido agendada exitosamente!\n"
                 f"Te esperamos el {usuarios[numero]['fecha_hora']} 💖\n"
@@ -111,5 +95,3 @@ def whatsapp_bot():
 
     return str(resp)
 
-if __name__ == "__main__":
-    app.run(port=5000, debug=True)
