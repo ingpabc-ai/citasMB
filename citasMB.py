@@ -202,7 +202,7 @@ def whatsapp_bot():
     if estado == "cita_design":
         if mensaje in YES:
             user_data["estado"] = "cita_fecha"
-            twiml.message("Perfecto 💖. Por favor indícanos ahora qué día y hora prefieres para tu cita (ejemplo: 20/09 15:00).")
+            twiml.message("Perfecto 💖. Puedes adjuntar tu diseño si lo tienes, o describirlo. Una vez hecho esto, por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
         elif mensaje in NO:
             user_data["estado"] = "cita_fecha"
             twiml.message("No hay problema 💖. Entonces indícanos qué día y hora prefieres para tu cita (ejemplo: 20/09 15:00).")
@@ -254,4 +254,3 @@ def home():
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
-    
