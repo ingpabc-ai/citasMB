@@ -11,9 +11,16 @@ def whatsapp():
     incoming_msg = request.values.get("Body", "").strip()
     from_number = request.values.get("From")
     
+    # Normalizar texto
+    clean_msg = incoming_msg.lower().strip()
+    
     # Respuesta Twilio
     resp = MessagingResponse()
     msg = resp.message()
+    
+    # Reinicio manual si el cliente escribe "hola"
+    if clean_msg in ["hola", "buenas", "hi"]:
+        user_state[from_number] = {"step": "ask_name", "name": None}
     
     # Inicializar estado si no existe
     if from_number not in user_state:
@@ -31,7 +38,9 @@ def whatsapp():
     
     # Paso 2: Recibir nombre y mostrar menú
     elif state["step"] == "get_name":
-        state["name"] = incoming_msg
+        # Guardar nombre con primera letra mayúscula
+        name = incoming_msg.strip().title()
+        state["name"] = name
         state["step"] = "menu"
         msg.body(f"¡Encantada de conocerte, {state['name']}! 😍\n\n"
                  "¿En qué puedo ayudarte hoy?\n"
@@ -43,16 +52,16 @@ def whatsapp():
     
     # Paso 3: Procesar elección del menú
     elif state["step"] == "menu":
-        if incoming_msg == "1":
+        if clean_msg == "1":
             msg.body("Perfecto ✨. Para agendar tu cita, por favor indícanos:\n"
                      "- El servicio que deseas\n"
                      "- Día y hora de preferencia\n\n"
                      "Te confirmaremos la disponibilidad enseguida 💅")
-        elif incoming_msg == "2":
+        elif clean_msg == "2":
             msg.body("📍 Nuestra dirección es: *Cra 15 # 10-25, Cali*. ¡Te esperamos!")
-        elif incoming_msg == "3":
+        elif clean_msg == "3":
             msg.body("Síguenos en Instagram 📸: https://instagram.com/spamilenabravo")
-        elif incoming_msg == "4":
+        elif clean_msg == "4":
             msg.body("Claro 😊, ¿en qué podemos ayudarte?")
             state["step"] = "manual"  # se deja abierto para atención humana
         else:
@@ -73,6 +82,7 @@ def whatsapp():
 
 if __name__ == "__main__":
     app.run(port=10000, debug=True)
+
 
 
 
