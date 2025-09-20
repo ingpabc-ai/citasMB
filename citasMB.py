@@ -16,22 +16,23 @@ servicios = {
 
 @app.route("/whatsapp", methods=['POST'])
 def whatsapp_bot():
-    # Debug de lo que llega
-    try:
-        print("---- INCOMING REQUEST FORM ----")
-        for k, v in request.form.items():
-            print(f"{k}: {v}")
-        print("---- END FORM ----")
-    except Exception as e:
-        print("Error imprimiendo form:", e)
-
     numero = request.form.get('From')
     mensaje_raw = request.form.get('Body') or ""
     mensaje = mensaje_raw.strip().lower()
     resp = MessagingResponse()
 
-    # --- Primer contacto (usuario nuevo o saludo) ---
-    if numero not in usuarios or mensaje in ["hola", "hi", "buenas"]:
+    # --- Reinicio con "hola" en cualquier momento ---
+    if mensaje in ["hola", "hi", "buenas"]:
+        usuarios[numero] = {'estado': 'inicio'}
+        resp.message(
+            "¡Hola! ¡Estamos felices de tenerte por aquí! 😊\n\n"
+            "Soy Sammy, el asistente virtual de Spa Milena Bravo y estoy lista para ayudarte a conseguir las uñas de tus sueños.\n\n"
+            "Para darte una mejor atención, ¿me dices tu nombre, por favor?"
+        )
+        return Response(str(resp), status=200, mimetype='application/xml')
+
+    # --- Primer contacto (usuario nuevo) ---
+    if numero not in usuarios:
         usuarios[numero] = {'estado': 'inicio'}
         resp.message(
             "¡Hola! ¡Estamos felices de tenerte por aquí! 😊\n\n"
@@ -60,17 +61,18 @@ def whatsapp_bot():
     if estado == 'menu':
         if mensaje in ['1', 'pedir cita']:
             usuarios[numero]['estado'] = 'cita_servicio'
-            resp.message("¡Perfecto! 💅 Vamos a agendar tu cita.\nEstos son nuestros servicios. (Elije un número):\n" +
-                         "\n".join([f"{k}️⃣ {v['nombre']}" for k, v in servicios.items()]))
+            resp.message(
+                "¡Perfecto! 💅 Vamos a agendar tu cita.\nEstos son nuestros servicios. (Elige un número):\n" +
+                "\n".join([f"{k}️⃣ {v['nombre']}" for k, v in servicios.items()])
+            )
         elif mensaje in ['2', 'dirección', 'direccion']:
             resp.message("Nuestra dirección es: Calle 53 #78-61. Barrio Los Colores, Medellín.")
         elif mensaje in ['3', 'instagram']:
             resp.message("Nuestro Instagram es: @milenabravo.co")
-        elif mensaje in ['4', 'otra', 'otro']:
-            resp.message("¿En qué podemos ayudarte? ✨ Un asesor continuará contigo manualmente.")
-            usuarios[numero]['estado'] = 'manual'
+        elif mensaje in ['4', 'otra pregunta', 'otro servicio']:
+            resp.message("Cuéntame, ¿en qué podemos ayudarte? 😊 (Un asesor continuará la conversación).")
         else:
-            resp.message("Por favor, elige una de las opciones con un número (1, 2, 3 o 4) 📌")
+            resp.message("Por favor, elige una opción válida escribiendo un número (1, 2, 3 o 4).")
         return Response(str(resp), status=200, mimetype='application/xml')
 
     # Selección de servicio
@@ -79,9 +81,11 @@ def whatsapp_bot():
             usuarios[numero]['servicio'] = mensaje
             usuarios[numero]['estado'] = 'cita_subopcion'
             subopc = servicios[mensaje]['subopciones']
-            resp.message("Elegiste: " + servicios[mensaje]['nombre'] + "\n"
-                         "Ahora elige una opción:\n" +
-                         "\n".join([f"{i+1}️⃣ {subopc[i]}" for i in range(len(subopc))]))
+            resp.message(
+                "Elegiste: " + servicios[mensaje]['nombre'] + "\n"
+                "Ahora elige una opción:\n" +
+                "\n".join([f"{i+1}️⃣ {subopc[i]}" for i in range(len(subopc))])
+            )
         else:
             resp.message("Por favor, selecciona un número válido del servicio.")
         return Response(str(resp), status=200, mimetype='application/xml')
@@ -139,13 +143,8 @@ def whatsapp_bot():
     return Response(str(resp), status=200, mimetype='application/xml')
 
 
-# Endpoint raíz para evitar error 404 en Render
-@app.route("/", methods=["GET"])
-def home():
-    return "Servidor corriendo en Render OK 🚀"
-
-
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+
 
 
