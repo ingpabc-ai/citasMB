@@ -14,10 +14,12 @@ servicios = {
     "1": {"nombre": "Manicure tradicional", "subopciones": ["Normal", "Francesa", "Nail art"]},
     "2": {"nombre": "Manicure en gel", "subopciones": ["Normal", "Francesa", "Nail art"]},
     "3": {"nombre": "Pedicure", "subopciones": ["Spa", "Normal"]},
-    "4": {"nombre": "Paquete completo", "subopciones": ["Manicure + Pedicure", "Manicure + Gel"]}
+    "4": {"nombre": "Paquete completo", "subopciones": ["Manicure + Pedicure", "Manicure + Gel"]},
+    "5": {"nombre": "Cejas", "subopciones": ["Diseño y depilación", "Laminado"]},
+    "6": {"nombre": "Alisado", "subopciones": ["Keratina", "Botox capilar"]}
 }
 
-GREETINGS = {"hola", "buenas", "buenos días", "buenos dias", "buenas tardes", "buenas noches", "hi", "hello"}
+GREETINGS = {"hola", "buenas", "buenos días", "buenos dias", "buenas tardes", "buenas noches", "hi", "hello", "hola mile", "hola milena"}
 YES = {"si", "sí", "s"}
 NO = {"no", "n"}
 
@@ -201,17 +203,25 @@ def whatsapp_bot():
     # 6) Pregunta si tiene diseño (si/no)
     if estado == "cita_design":
         if mensaje in YES:
-            user_data["estado"] = "cita_fecha"
-            twiml.message("Perfecto 💖. Puedes adjuntar tu diseño si lo tienes, o describirlo. Una vez hecho esto, por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
+            user_data["estado"] = "awaiting_design"
+            twiml.message("Perfecto 💖. Por favor, adjunta tu diseño o descríbelo.")
         elif mensaje in NO:
             user_data["estado"] = "cita_fecha"
-            twiml.message("No hay problema 💖. Entonces indícanos qué día y hora prefieres para tu cita (ejemplo: 20/09 15:00).")
+            twiml.message("No hay problema 💖. Ahora indícanos qué día y hora prefieres para tu cita (ejemplo: 20/09 15:00).")
         else:
             twiml.message("Por favor responde 'Sí' o 'No' para que podamos continuar.")
         user_ref.update(user_data)
         return Response(str(twiml), status=200, mimetype="application/xml")
 
-    # 7) Recepción de fecha y hora solicitada por el cliente
+    # 7) Nuevo estado: esperando el diseño del cliente
+    if estado == "awaiting_design":
+        # Cualquier mensaje se considera el diseño o su descripción
+        user_data["estado"] = "cita_fecha"
+        twiml.message("Gracias. Ahora por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
+        user_ref.update(user_data)
+        return Response(str(twiml), status=200, mimetype="application/xml")
+
+    # 8) Recepción de fecha y hora solicitada por el cliente
     if estado == "cita_fecha":
         user_data["fecha_solicitada"] = mensaje_raw
         user_data["estado"] = "esperando_revision"
@@ -223,7 +233,7 @@ def whatsapp_bot():
         user_ref.update(user_data)
         return Response(str(twiml), status=200, mimetype="application/xml")
 
-    # 8) Estado: esperando_revision -> ahora el cliente puede responder con confirmación
+    # 9) Estado: esperando_revision -> ahora el cliente puede responder con confirmación
     if estado == "esperando_revision":
         if mensaje in YES:
             if user_data.get("fecha_confirmada"):
@@ -254,3 +264,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+
