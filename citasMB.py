@@ -126,7 +126,7 @@ def whatsapp_bot():
 
     # Si el estado es "manual", no se hace nada más
     if estado == "manual":
-        twiml.message("Un asesor humano ya está al tanto de tu conversación y te responderá en breve. 🙌")
+        twiml.message("Un asesor humano ya está al tanto de tu conversación y te responderá en breve. 🙌\n\nPara volver al menú, por favor, escribe 'hola'.")
         return Response(str(twiml), status=200, mimetype="application/xml")
 
     # 2) Si estamos esperando nombre
