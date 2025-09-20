@@ -11,10 +11,10 @@ from firebase_admin import credentials, firestore
 usuarios = {} # Este diccionario ya no se usa para la persistencia
 
 servicios = {
-    "1": {"nombre": "Manicure tradicional", "subopciones": ["Normal", "Francesa", "Nail art"]},
-    "2": {"nombre": "Manicure en gel", "subopciones": ["Normal", "Francesa", "Nail art"]},
-    "3": {"nombre": "Pedicure", "subopciones": ["Spa", "Normal"]},
-    "4": {"nombre": "Paquete completo", "subopciones": ["Manicure + Pedicure", "Manicure + Gel"]},
+    "1": {"nombre": "Solo Manicure tradicional", "subopciones": ["Normal", "Francesa", "Nail art"]},
+    "2": {"nombre": "Solo Manicure semipermanente", "subopciones": ["Normal", "Francesa", "Nail art"]},
+    "3": {"nombre": "Solo Pedicure", "subopciones": ["Spa", "Normal"]},
+    "4": {"nombre": "Manicure y pedicure", "subopciones": ["Manicure + Pedicure", "Manicure + Gel"]},
     "5": {"nombre": "Cejas", "subopciones": ["Diseño y depilación", "Laminado"]},
     "6": {"nombre": "Alisado", "subopciones": ["Keratina", "Botox capilar"]}
 }
@@ -106,7 +106,7 @@ def whatsapp_bot():
                 "1️⃣ Pedir cita\n"
                 "2️⃣ Ver dirección\n"
                 "3️⃣ Instagram\n"
-                "4️⃣ Otra pregunta o servicio\n\n"
+                "4️⃣ Tengo una consulta\n\n"
                 "Por favor responde con el número de la opción."
             )
         else:
@@ -145,7 +145,7 @@ def whatsapp_bot():
                 "1️⃣ Pedir cita\n"
                 "2️⃣ Ver dirección\n"
                 "3️⃣ Instagram\n"
-                "4️⃣ Otra pregunta o servicio\n\n"
+                "4️⃣ Tengo una consulta\n\n"
                 "Por favor responde con el número de la opción."
             )
             debug_log(numero, user_data["estado"], f"guardado nombre: {nombre}")
@@ -236,18 +236,21 @@ def whatsapp_bot():
     # 9) Estado: esperando_revision -> ahora el cliente puede responder con confirmación
     if estado == "esperando_revision":
         if mensaje in YES:
-            if user_data.get("fecha_confirmada"):
-                user_data["estado"] = "menu"
-                fecha = user_data["fecha_confirmada"]
-                twiml.message(f"✅ Tu cita ha sido agendada exitosamente!\nTe esperamos el {fecha} 💖\nGracias por elegir Spa Milena Bravo. Te enviaremos un recordatorio antes de tu cita.")
-            else:
-                # Este caso ocurre si el cliente responde 'Sí' antes de que el asesor le dé una fecha.
-                twiml.message("Gracias. Por favor, espera a que un asesor te envíe una propuesta de fecha/hora para confirmar.")
+            # Aquí el bot delega a un humano para la confirmación
+            user_data["estado"] = "manual"
+            twiml.message("¡Gracias! 💖 Tu solicitud de cita ha sido recibida y será revisada por un miembro de nuestro equipo. Te contactaremos pronto para confirmar los detalles.")
         elif mensaje in NO:
             user_data["estado"] = "cita_fecha"
             twiml.message("No hay problema 💖. Indícanos otra fecha y hora que prefieras.")
+        elif is_datetime_like(mensaje_raw):
+            # Si el usuario proporciona una nueva fecha directamente, la manejamos aquí
+            user_data["fecha_solicitada"] = mensaje_raw
+            twiml.message(
+                "Entendido. Revisaremos de nuevo nuestra agenda para esta nueva fecha.\n"
+                "Te enviaremos una propuesta, por favor responde 'Sí' o 'No'."
+            )
         else:
-            twiml.message("Estamos procesando tu solicitud. Por favor, responde 'Sí' para confirmar una vez que te enviemos una propuesta.")
+            twiml.message("Lo siento, no entendí tu respuesta. Por favor, responde 'Sí' o 'No' para confirmar o reprogamar la cita.")
         user_ref.update(user_data)
         return Response(str(twiml), status=200, mimetype="application/xml")
 
@@ -264,4 +267,6 @@ def home():
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+
+
 
