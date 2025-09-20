@@ -231,17 +231,13 @@ def whatsapp_bot():
                 fecha = user_data["fecha_confirmada"]
                 twiml.message(f"✅ Tu cita ha sido agendada exitosamente!\nTe esperamos el {fecha} 💖\nGracias por elegir Spa Milena Bravo. Te enviaremos un recordatorio antes de tu cita.")
             else:
-                twiml.message("Gracias. Por favor indica la fecha y hora que deseas confirmar (ejemplo: 19/09 18:00) o espera nuestra propuesta.")
-        elif is_datetime_like(mensaje_raw):
-            user_data["fecha_confirmada"] = mensaje_raw
-            user_data["estado"] = "menu"
-            fecha = user_data["fecha_confirmada"]
-            twiml.message(f"✅ Tu cita ha sido agendada exitosamente!\nTe esperamos el {fecha} 💖\nGracias por elegir Spa Milena Bravo. Te enviaremos un recordatorio antes de tu cita.")
+                # Este caso ocurre si el cliente responde 'Sí' antes de que el asesor le dé una fecha.
+                twiml.message("Gracias. Por favor, espera a que un asesor te envíe una propuesta de fecha/hora para confirmar.")
         elif mensaje in NO:
             user_data["estado"] = "cita_fecha"
             twiml.message("No hay problema 💖. Indícanos otra fecha y hora que prefieras.")
         else:
-            twiml.message("Estamos procesando tu solicitud. Si ya confirmaste con el asesor, por favor responde con la fecha/hora (ej: 19/09 18:00) o responde 'Sí' cuando quieras confirmar.")
+            twiml.message("Estamos procesando tu solicitud. Por favor, responde 'Sí' para confirmar una vez que te enviemos una propuesta.")
         user_ref.update(user_data)
         return Response(str(twiml), status=200, mimetype="application/xml")
 
