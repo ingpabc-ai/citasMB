@@ -1,0 +1,1 @@
+web: gunicorn chatbot_spa_milenabravo:app
