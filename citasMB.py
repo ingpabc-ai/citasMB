@@ -42,6 +42,7 @@ app = Flask(__name__)
 try:
     firebase_service_key_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
     if firebase_service_key_json:
+        print("La clave de Firebase se encontró en las variables de entorno.")
         # Usar la clave de entorno para la autenticación
         cred = credentials.Certificate(json.loads(firebase_service_key_json))
         firebase_admin.initialize_app(cred)
@@ -154,7 +155,7 @@ def whatsapp_bot():
         if mensaje in {"1", "pedir cita"}:
             user_data["estado"] = "cita_servicio"
             opciones = "\n".join([f"{k}️⃣ {v['nombre']}" for k, v in servicios.items()])
-            twiml.message("¡Perfecto! 💅 Vamos a agendar tu cita.\nEstos son nuestros servicios:\n" + opciones + "\n\nPor favor selecciona el número del servicio.")
+            twiml.message("¡Perfecto! 💅 Vamos a agendar tu cita.\nEstos son nuestros servicios:\n" + opciones + "\n\nPor favor selecciona el número de la opción.")
         elif mensaje in {"2", "direccion", "dirección"}:
             twiml.message("Nuestra dirección es: Calle 53 #78-61. Barrio Los Colores, Medellín.")
         elif mensaje in {"3", "instagram"}:
@@ -257,3 +258,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+    
