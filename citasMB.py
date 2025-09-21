@@ -23,25 +23,25 @@ menu = {
                 "sub": {
                     "1": {"texto": "Tradicional", "tipo": "fecha"},
                     "2": {"texto": "Semipermanentes", "tipo": "diseño"},
-                    "3": {"texto": "Acrílicas o en polygel", "tipo": "diseño"}
+                    "3": {"texto": "Acrílicas", "tipo": "diseño"}
                 }
             },
             "2": {
                 "texto": "Solamente pies",
                 "sub": {
                     "1": {"texto": "Tradicional", "tipo": "fecha"},
-                    "2": {"texto": "Semipermanentes", "tipo": "fecha"}
+                    "2": {"texto": "Semipermanentes", "tipo": "diseño"}
                 }
             },
             "3": {
                 "texto": "Manos y pies",
                 "sub": {
-                    "1": {"texto": "Tradicional", "tipo": "fecha"},
-                    "2": {"texto": "Semipermanentes", "tipo": "diseño"},
-                    "3": {"texto": "Manos semi y pies tradicional", "tipo": "diseño"},
-                    "4": {"texto": "Manos tradicional y pies semi", "tipo": "fecha"},
-                    "5": {"texto": "Manos acrílicas/polygel y pies tradicional", "tipo": "diseño"},
-                    "6": {"texto": "Manos acrílicas/polygel y pies semi", "tipo": "diseño"}
+                    "1": {"texto": "Manos y pies tradicional", "tipo": "fecha"},
+                    "2": {"texto": "Manos y pies semipermanentes", "tipo": "diseño"},
+                    "3": {"texto": "Manos semipermanentes y pies tradicional", "tipo": "diseño"},
+                    "4": {"texto": "Manos tradicional y pies semipermanente", "tipo": "fecha"},
+                    "5": {"texto": "Manos acrílicas o en poligel y pies tradicional", "tipo": "diseño"},
+                    "6": {"texto": "Manos acrílicas o en poligel y semipermanentes", "tipo": "diseño"}
                 }
             }
         }
@@ -57,7 +57,7 @@ def is_datetime_like(text: str) -> bool:
     if not text:
         return False
     contains_digit = any(ch.isdigit() for ch in text)
-    contains_sep = ("/" in text) or ("-" in text) or (":" in text)
+    contains_sep = ("/" in text) or ("-" in text) or (":" in text) or (" " in text)
     return contains_digit and contains_sep
 
 
@@ -170,17 +170,21 @@ def whatsapp_bot():
                     twiml.message("¿En qué servicio estás interesada?")
                 elif tipo == "direccion":
                     twiml.message("📍 Nuestra dirección es: Calle 53 #78-61. Barrio Los Colores, Medellín.")
+                    user_data["estado"] = "menu"
+                    user_data["ruta"] = []
                 elif tipo == "instagram":
                     twiml.message("✨ Nuestro Instagram es: @milenabravo.co")
+                    user_data["estado"] = "menu"
+                    user_data["ruta"] = []
                 elif tipo == "consulta":
                     user_data["estado"] = "consulta"
-                    twiml.message("Cuéntanos cuál es tu consulta ✨")
+                    twiml.message("Cuéntanos cuál es tu consulta.")
                 elif tipo == "fecha":
                     user_data["estado"] = "cita_fecha"
-                    twiml.message("Por favor indícanos día y hora (ejemplo: 20/09 15:00).")
+                    twiml.message("Favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
                 elif tipo == "diseño":
                     user_data["estado"] = "cita_design"
-                    twiml.message("¿Tienes un diseño para compartir? (Responde Sí o No)")
+                    twiml.message("¿Tienes un diseño que quieras compartir con nosotras para calcular mejor el tiempo de la cita? (Responde 'Sí' o 'No').")
             user_ref.set(user_data)
             return Response(str(twiml), 200, mimetype="application/xml")
         else:
@@ -205,28 +209,27 @@ def whatsapp_bot():
     if estado == "cita_design":
         if mensaje in YES:
             user_data["estado"] = "awaiting_design"
-            twiml.message("Perfecto 💖. Por favor adjunta tu diseño o descríbelo.")
+            twiml.message("Perfecto 💖. Por favor adjunta tu diseño o la descripción de lo que deseas.")
         elif mensaje in NO:
-            user_data["estado"] = "cita_fecha"
-            twiml.message("Indícanos el día y hora para tu cita (ej: 20/09 15:00).")
+            user_data["estado"] = "cita_fecha_no_design"
+            twiml.message("No hay problema 💖. Por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
         else:
-            twiml.message("Por favor responde Sí o No.")
+            twiml.message("Por favor responde 'Sí' o 'No'.")
         user_ref.set(user_data)
         return Response(str(twiml), 200, mimetype="application/xml")
 
     if estado == "awaiting_design":
         user_data["estado"] = "cita_fecha"
-        twiml.message("Gracias 💖. Ahora indícanos día y hora (ej: 20/09 15:00).")
+        twiml.message("Perfecto 💖. Por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
         user_ref.set(user_data)
         return Response(str(twiml), 200, mimetype="application/xml")
-
+    
     # Fecha
-    if estado == "cita_fecha":
-        if is_datetime_like(mensaje_raw):
-            user_data["estado"] = "manual"
-            twiml.message("Revisaremos nuestra agenda 📅. Danos un momento.\n\n✅ Tu cita será confirmada por un asesor.")
-        else:
-            twiml.message("Por favor indica fecha y hora en formato válido (ej: 20/09 15:00).")
+    if estado == "cita_fecha" or estado == "cita_fecha_no_design":
+        # Se asume que cualquier texto es una fecha/hora, ya que la validación manual
+        # se hará por un asesor.
+        user_data["estado"] = "manual"
+        twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅. Danos un momento, en breve te enviaremos una propuesta.")
         user_ref.set(user_data)
         return Response(str(twiml), 200, mimetype="application/xml")
 
