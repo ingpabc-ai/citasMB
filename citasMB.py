@@ -78,8 +78,9 @@ def send_to_manual(user_data, user_ref, twiml):
     twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅. Danos un momento, en breve te enviaremos una propuesta.")
     try:
         user_ref.set(user_data)
+        print(f"[DEBUG] Datos actualizados en Firestore (send_to_manual): {user_data}")
     except Exception as e:
-        print(f"Error al guardar en Firestore: {e}")
+        print(f"[ERROR] Error al guardar en Firestore: {e}")
         twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
 
 def send_to_manual_reprogram(user_data, user_ref, twiml):
@@ -87,8 +88,9 @@ def send_to_manual_reprogram(user_data, user_ref, twiml):
     twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅.\nDanos un momento, en breve te enviaremos una propuesta.")
     try:
         user_ref.set(user_data)
+        print(f"[DEBUG] Datos actualizados en Firestore (send_to_manual_reprogram): {user_data}")
     except Exception as e:
-        print(f"Error al guardar en Firestore: {e}")
+        print(f"[ERROR] Error al guardar en Firestore: {e}")
         twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
 
 # Flask + Firebase
@@ -121,7 +123,9 @@ def whatsapp_bot():
 
         if not db:
             twiml.message("Disculpa, nuestro asistente está en mantenimiento. Intenta más tarde 🙏")
-            return Response(str(twiml), 200, mimetype="application/xml")
+            twiml_response = str(twiml)
+            print(f"[DEBUG] TwiML response: {twiml_response}")
+            return Response(twiml_response, 200, mimetype="application/xml")
 
         user_ref = db.collection("users").document(numero)
         user_doc = user_ref.get()
@@ -131,10 +135,13 @@ def whatsapp_bot():
             user_data = {"estado": "awaiting_name", "nombre": None, "ruta": [], "fecha": None}
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Nuevo usuario creado en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar nuevo usuario en Firestore: {e}")
+                print(f"[ERROR] Error al guardar nuevo usuario en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
-                return Response(str(twiml), 200, mimetype="application/xml")
+                twiml_response = str(twiml)
+                print(f"[DEBUG] TwiML response: {twiml_response}")
+                return Response(twiml_response, 200, mimetype="application/xml")
 
         estado = user_data["estado"]
         debug_log(numero, estado, mensaje_raw, f"ruta={user_data['ruta']}")
@@ -150,8 +157,9 @@ def whatsapp_bot():
                 twiml.message("¡Hola! Soy Sammy, 🤖 el asistente virtual de Spa Milena Bravo💅, donde hacemos tus sueños realidad. ¿Me dices tu nombre?")
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar en Firestore: {e}")
+                print(f"[ERROR] Error al guardar en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "awaiting_name":
             nombre = mensaje_raw.title()
@@ -161,27 +169,37 @@ def whatsapp_bot():
             twiml.message(f"¡Encantada de conocerte, {nombre}! 😍\n\n{menu_txt}\n\nResponde con un número.")
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar en Firestore: {e}")
+                print(f"[ERROR] Error al guardar en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "menu" or estado == "submenu":
             if not is_valid_ruta(user_data["ruta"], menu):
+                print(f"[ERROR] Ruta inválida: {user_data['ruta']}")
                 user_data["ruta"] = []
                 user_data["estado"] = "menu"
                 try:
                     user_ref.set(user_data)
+                    print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
                 except Exception as e:
-                    print(f"Error al guardar en Firestore: {e}")
+                    print(f"[ERROR] Error al guardar en Firestore: {e}")
                     twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
+                    twiml_response = str(twiml)
+                    print(f"[DEBUG] TwiML response: {twiml_response}")
+                    return Response(twiml_response, 200, mimetype="application/xml")
                 twiml.message("Ocurrió un error. Por favor elige una opción del menú principal.")
-                return Response(str(twiml), 200, mimetype="application/xml")
-                
+                twiml_response = str(twiml)
+                print(f"[DEBUG] TwiML response: {twiml_response}")
+                return Response(twiml_response, 200, mimetype="application/xml")
+            
             current_node = menu
             for step in user_data["ruta"]:
                 current_node = current_node["sub"][step]
             
+            print(f"[DEBUG] Current node: {current_node} | Mensaje: {mensaje}")
             if mensaje in current_node:
                 elegido = current_node[mensaje]
+                print(f"[DEBUG] Opción elegida: {elegido}")
                 if "sub" in elegido:
                     user_data["ruta"].append(mensaje)
                     user_data["estado"] = "submenu"
@@ -189,6 +207,7 @@ def whatsapp_bot():
                     twiml.message(f"Elegiste: {elegido['texto']}\n\n{opciones}\n\nElige una opción.")
                 else:
                     tipo = elegido.get("tipo")
+                    print(f"[DEBUG] Tipo de opción: {tipo}")
                     user_data["ruta"].append(mensaje)
                     if tipo == "otros":
                         twiml.message("¿En qué servicio estás interesada? Danos un momento, en breve te brindaremos asesoría.")
@@ -213,20 +232,28 @@ def whatsapp_bot():
                     elif tipo == "diseño":
                         user_data["estado"] = "cita_design"
                         twiml.message("¿Tienes un diseño que quieras compartir con nosotras para calcular mejor el tiempo de la cita? (Responde 'Sí' o 'No').")
-                    try:
-                        user_ref.set(user_data)
-                    except Exception as e:
-                        print(f"Error al guardar en Firestore: {e}")
-                        twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
+                try:
+                    user_ref.set(user_data)
+                    print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
+                except Exception as e:
+                    print(f"[ERROR] Error al guardar en Firestore: {e}")
+                    twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
             else:
                 twiml.message("Por favor elige una opción válida con un número.")
+                try:
+                    user_ref.set(user_data)
+                    print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
+                except Exception as e:
+                    print(f"[ERROR] Error al guardar en Firestore: {e}")
+                    twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "awaiting_reprogram_date":
             user_data["estado"] = "awaiting_new_date"
             twiml.message("¡Perfecto! Cuéntanos para cuándo deseas reprogramar tu cita?")
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar en Firestore: {e}")
+                print(f"[ERROR] Error al guardar en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "awaiting_new_date":
             send_to_manual_reprogram(user_data, user_ref, twiml)
@@ -241,8 +268,9 @@ def whatsapp_bot():
                 twiml.message("Por favor responde 'Sí' o 'No'.")
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar en Firestore: {e}")
+                print(f"[ERROR] Error al guardar en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "awaiting_design":
             if media_url:
@@ -251,8 +279,9 @@ def whatsapp_bot():
             twiml.message("Perfecto 💖. Por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
             try:
                 user_ref.set(user_data)
+                print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
             except Exception as e:
-                print(f"Error al guardar en Firestore: {e}")
+                print(f"[ERROR] Error al guardar en Firestore: {e}")
                 twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         elif estado == "cita_fecha" or estado == "cita_fecha_no_design":
             if is_valid_date_format(mensaje):
@@ -261,18 +290,21 @@ def whatsapp_bot():
                 twiml.message("Por favor, ingresa una fecha válida en el formato DD/MM HH:MM (ejemplo: 20/09 15:00).")
                 try:
                     user_ref.set(user_data)
+                    print(f"[DEBUG] Datos actualizados en Firestore: {user_data}")
                 except Exception as e:
-                    print(f"Error al guardar en Firestore: {e}")
+                    print(f"[ERROR] Error al guardar en Firestore: {e}")
                     twiml.message("Lo sentimos, ocurrió un error al procesar tu solicitud. Intenta de nuevo.")
         else:
             twiml.message("Lo siento, no entendí tu mensaje 🙏. Escribe 'hola' para empezar de nuevo.")
 
     except Exception as e:
-        print(f"Error inesperado en el webhook: {e}")
+        print(f"[ERROR] Error inesperado en el webhook: {e}")
         twiml = MessagingResponse()
         twiml.message("Lo sentimos, se ha producido un error inesperado. Por favor, inténtalo de nuevo más tarde.")
 
-    return Response(str(twiml), 200, mimetype="application/xml")
+    twiml_response = str(twiml)
+    print(f"[DEBUG] TwiML response: {twiml_response}")
+    return Response(twiml_response, 200, mimetype="application/xml")
 
 @app.route("/", methods=["GET"])
 def home():
