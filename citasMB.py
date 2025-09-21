@@ -23,7 +23,7 @@ menu = {
                 "sub": {
                     "1": {"texto": "Tradicional", "tipo": "fecha"},
                     "2": {"texto": "Semipermanentes", "tipo": "diseño"},
-                    "3": {"texto": "Acrílicas", "tipo": "diseño"}
+                    "3": {"texto": "Acrílicas o en polygel", "tipo": "diseño"}
                 }
             },
             "2": {
@@ -49,16 +49,9 @@ menu = {
     "2": {"texto": "Pedir cita otros servicios", "tipo": "otros"},
     "3": {"texto": "Ver dirección", "tipo": "direccion"},
     "4": {"texto": "Instagram", "tipo": "instagram"},
-    "5": {"texto": "Tengo una consulta", "tipo": "consulta"}
+    "5": {"texto": "Tengo una consulta", "tipo": "consulta"},
+    "6": {"texto": "Reprogramar una cita", "tipo": "reprogramar"}
 }
-
-
-def is_datetime_like(text: str) -> bool:
-    if not text:
-        return False
-    contains_digit = any(ch.isdigit() for ch in text)
-    contains_sep = ("/" in text) or ("-" in text) or (":" in text) or (" " in text)
-    return contains_digit and contains_sep
 
 
 def debug_log(numero, estado, mensaje_raw):
@@ -96,6 +89,19 @@ def render_menu(nodo):
     for k, v in nodo["sub"].items():
         opciones.append(f"{k}️⃣ {v['texto']}")
     return "\n".join(opciones)
+
+
+def send_to_manual(user_data, user_ref, twiml):
+    """Función para pasar el control a un asesor humano"""
+    user_data["estado"] = "manual"
+    twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅. Danos un momento, en breve te enviaremos una propuesta.")
+    user_ref.set(user_data)
+    
+def send_to_manual_reprogram(user_data, user_ref, twiml):
+    """Función para pasar el control a un asesor humano en el caso de reprogramación"""
+    user_data["estado"] = "manual"
+    twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅.\nDanos un momento, en breve te enviaremos una propuesta.")
+    user_ref.set(user_data)
 
 
 # -------------------------------
@@ -152,57 +158,64 @@ def whatsapp_bot():
     if estado == "menu" or estado == "submenu":
         nodo = menu
         for step in user_data["ruta"]:
-            nodo = nodo["sub"][step]
+            if step in nodo.get("sub", {}):
+                nodo = nodo["sub"][step]
+            else:
+                user_data["ruta"] = []
+                user_data["estado"] = "menu"
+                user_ref.set(user_data)
+                twiml.message("Ocurrió un error. Por favor elige una opción del menú principal.")
+                return Response(str(twiml), 200, mimetype="application/xml")
 
         if mensaje in nodo.get("sub", {}):
             elegido = nodo["sub"][mensaje]
             user_data["ruta"].append(mensaje)
 
-            # Si aún tiene submenús
             if "sub" in elegido:
                 user_data["estado"] = "submenu"
                 opciones = render_menu(elegido)
                 twiml.message(f"Elegiste: {elegido['texto']}\n\n{opciones}\n\nElige una opción.")
             else:
                 tipo = elegido.get("tipo")
+                user_data["estado"] = "menu"
+                user_data["ruta"] = []
                 if tipo == "otros":
-                    user_data["estado"] = "otros"
-                    twiml.message("¿En qué servicio estás interesada?")
+                    twiml.message("¿En qué servicio estás interesada? Danos un momento, en breve te brindaremos asesoría.")
                 elif tipo == "direccion":
                     twiml.message("📍 Nuestra dirección es: Calle 53 #78-61. Barrio Los Colores, Medellín.")
-                    user_data["estado"] = "menu"
-                    user_data["ruta"] = []
                 elif tipo == "instagram":
                     twiml.message("✨ Nuestro Instagram es: @milenabravo.co")
-                    user_data["estado"] = "menu"
-                    user_data["ruta"] = []
                 elif tipo == "consulta":
-                    user_data["estado"] = "consulta"
-                    twiml.message("Cuéntanos cuál es tu consulta.")
+                    twiml.message("Cuéntanos cuál es tu consulta. Danos un momento, en breve te daremos una respuesta.")
+                elif tipo == "reprogramar":
+                    user_data["estado"] = "awaiting_reprogram_date"
+                    twiml.message("Señala para cuándo tenías agendada tu cita?")
                 elif tipo == "fecha":
                     user_data["estado"] = "cita_fecha"
                     twiml.message("Favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
                 elif tipo == "diseño":
                     user_data["estado"] = "cita_design"
                     twiml.message("¿Tienes un diseño que quieras compartir con nosotras para calcular mejor el tiempo de la cita? (Responde 'Sí' o 'No').")
-            user_ref.set(user_data)
-            return Response(str(twiml), 200, mimetype="application/xml")
-        else:
-            twiml.message("Por favor elige una opción válida con número.")
-            return Response(str(twiml), 200, mimetype="application/xml")
 
-    # Otros servicios
-    if estado == "otros":
-        user_data["estado"] = "manual"
-        twiml.message("Danos un momento, en breve te brindaremos asesoría 🙌.")
+                user_ref.set(user_data)
+                return Response(str(twiml), 200, mimetype="application/xml")
+        else:
+            twiml.message("Por favor elige una opción válida con un número.")
+            return Response(str(twiml), 200, mimetype="application/xml")
+    
+    # -------------------------------
+    # Flujos de agendamiento y consultas
+    # -------------------------------
+    
+    # Reprogramar cita
+    if estado == "awaiting_reprogram_date":
+        user_data["estado"] = "awaiting_new_date"
+        twiml.message("¡Perfecto! Cuéntanos para cuándo deseas reprogramar tu cita?")
         user_ref.set(user_data)
         return Response(str(twiml), 200, mimetype="application/xml")
-
-    # Consulta
-    if estado == "consulta":
-        user_data["estado"] = "manual"
-        twiml.message("Danos un momento, en breve te daremos una respuesta 🙌.")
-        user_ref.set(user_data)
+    
+    if estado == "awaiting_new_date":
+        send_to_manual_reprogram(user_data, user_ref, twiml)
         return Response(str(twiml), 200, mimetype="application/xml")
 
     # Diseño
@@ -218,6 +231,7 @@ def whatsapp_bot():
         user_ref.set(user_data)
         return Response(str(twiml), 200, mimetype="application/xml")
 
+    # Awaiting design
     if estado == "awaiting_design":
         user_data["estado"] = "cita_fecha"
         twiml.message("Perfecto 💖. Por favor indícanos el día y hora que prefieres para tu cita (ejemplo: 20/09 15:00).")
@@ -226,11 +240,7 @@ def whatsapp_bot():
     
     # Fecha
     if estado == "cita_fecha" or estado == "cita_fecha_no_design":
-        # Se asume que cualquier texto es una fecha/hora, ya que la validación manual
-        # se hará por un asesor.
-        user_data["estado"] = "manual"
-        twiml.message("Revisaremos nuestra agenda para verificar disponibilidad 📅. Danos un momento, en breve te enviaremos una propuesta.")
-        user_ref.set(user_data)
+        send_to_manual(user_data, user_ref, twiml)
         return Response(str(twiml), 200, mimetype="application/xml")
 
     # Fallback
